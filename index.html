@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="description" content="Gestisci la tua cantina personale: vini, abbinamenti e molto altro.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cantina">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <title>Cantina Personale</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.svg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ======== HEADER ======== -->
+  <header class="app-header" id="main-header">
+    <div class="header-content">
+      <div class="header-title">
+        <span class="header-icon">🍷</span>
+        <h1>Cantina Personale</h1>
+      </div>
+    </div>
+    <!-- Stats bar (only visible on cantina page) -->
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-bottiglie">0</div>
+        <div class="stat-label">Bottiglie</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-etichette">0</div>
+        <div class="stat-label">Etichette</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-valore">€0</div>
+        <div class="stat-label">Valore €</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======== PAGE: CANTINA ======== -->
+  <main class="page active" id="page-cantina" role="main">
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button class="btn btn-add" id="btn-add-wine" aria-label="Aggiungi bottiglia">
+        + Aggiungi bottiglia
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-export" title="Esporta in XLSX">
+        ⬇ Esporta
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-import" title="Importa da XLSX">
+        ⬆ Importa
+      </button>
+      <button class="btn btn-danger btn-sm" id="btn-clear-db" title="Svuota database">
+        🗑
+      </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+      <div class="search-row">
+        <span class="search-icon">🔍</span>
+        <input
+          type="search"
+          class="search-input"
+          id="search-input"
+          placeholder="Cerca per produttore, vino, denominazione, uve..."
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Cerca vini"
+        >
+      </div>
+      <div class="filters-row">
+        <select class="filter-select" id="filter-denom" aria-label="Filtra per denominazione">
+          <option value="">Tutte le denominazioni</option>
+        </select>
+        <select class="filter-select" id="filter-sort" aria-label="Ordina per">
+          <option value="">Nessun filtro</option>
+          <option value="nome">Per nome</option>
+          <option value="annata">Per annata</option>
+          <option value="prezzo">Per prezzo</option>
+          <option value="approvazione">Per approvazione</option>
+          <option value="posizione">Per posizione</option>
+        </select>
+      </div>
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="filter-in-cantina">
+          Solo in cantina (qnt &gt; 0)
+        </label>
+      </div>
+    </div>
+
+    <!-- Wine List -->
+    <div class="wine-list" id="wine-list" role="list" aria-label="Lista vini">
+      <div class="empty-state">
+        <div class="empty-state-icon">🍷</div>
+        <div class="empty-state-text">Nessun vino in cantina</div>
+        <div class="empty-state-sub">Aggiungi la tua prima bottiglia!</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ======== PAGE: ABBINA ======== -->
+  <section class="page" id="page-abbina" role="main">
+    <div class="abbina-container">
+
+      <div class="abbina-title">
+        🍽 Abbina una bottiglia
+      </div>
+
+      <div class="abbina-input-section">
+        <label class="form-label" for="abbina-input" style="margin-bottom:8px;">Cosa mangi stasera?</label>
+        <textarea
+          class="abbina-textarea"
+          id="abbina-input"
+          placeholder="Es. Bistecca alla fiorentina, risotto ai funghi porcini, salmone alla griglia..."
+          rows="3"
+          aria-label="Descrivi il piatto"
+        ></textarea>
+        <button class="btn btn-gold btn-full btn-lg" id="btn-find-pairing" style="margin-top:10px;">
+          🔍 Trova abbinamento
+        </button>
+      </div>
+
+      <div id="abbina-results" aria-live="polite"></div>
+
+    </div>
+  </section>
+
+  <!-- ======== PAGE: IMPOSTAZIONI ======== -->
+  <section class="page" id="page-impostazioni" role="main">
+
+    <div style="font-size:20px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      ⚙️ Impostazioni
+    </div>
+
+    <!-- API Key Section -->
+    <div class="settings-section">
+      <div class="settings-section-title">
+        🤖 Claude AI
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="api-key-input">Claude API Key (opzionale)</label>
+        <div class="api-key-input-wrap">
+          <input
+            type="password"
+            class="api-key-input"
+            id="api-key-input"
+            placeholder="sk-ant-..."
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="Claude API key"
+          >
+          <button class="api-key-toggle" id="toggle-api-key" type="button" title="Mostra/nascondi" aria-label="Mostra/nascondi API key">👁</button>
+        </div>
+        <div class="helper-text">
+          Per abbinamenti AI avanzati e personalizzati.<br>
+          Ottienila su <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-save-api-key">💾 Salva key</button>
+        <button class="btn btn-secondary" id="btn-test-api-key">🔌 Testa connessione</button>
+        <div id="api-test-status"></div>
+      </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="settings-section">
+      <div class="settings-section-title">
+        ℹ️ Informazioni
+      </div>
+      <div class="info-card">
+        <p><strong>Senza API key:</strong> L'app funziona completamente offline con un database locale di abbinamenti per oltre 50 denominazioni e vitigni italiani.</p>
+        <p><strong>Con API key:</strong> Gli abbinamenti vengono generati da Claude AI in modo personalizzato in base ai dettagli del tuo vino specifico. Ideale per abbinamenti più precisi.</p>
+        <p><strong>Privacy:</strong> Tutti i dati sono salvati localmente sul dispositivo (IndexedDB). La API key è salvata solo nel localStorage del browser e non viene mai trasmessa se non direttamente ad Anthropic.</p>
+      </div>
+    </div>
+
+    <!-- App Info -->
+    <div class="settings-section">
+      <div class="settings-section-title">
+        📱 App
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.8;">
+        <div>Versione: <strong style="color:var(--text-primary)">1.0.0</strong></div>
+        <div>Storage: <strong style="color:var(--text-primary)">IndexedDB (locale)</strong></div>
+        <div>Offline: <strong style="color:var(--accent-green-light)">✓ Supportato</strong></div>
+        <div>PWA: <strong style="color:var(--accent-green-light)">✓ Installabile</strong></div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:12px;color:var(--text-muted);">
+        Importa/esporta i tuoi dati dalla pagina Cantina usando i pulsanti Importa/Esporta (formato .xlsx compatibile con Excel).
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ======== BOTTOM NAVIGATION ======== -->
+  <nav class="bottom-nav" role="navigation" aria-label="Navigazione principale">
+    <div class="nav-item active" data-tab="cantina" role="button" tabindex="0" aria-label="Cantina" aria-current="page">
+      <div class="nav-icon">🍷</div>
+      <div class="nav-label">Cantina</div>
+    </div>
+    <div class="nav-item" data-tab="abbina" role="button" tabindex="0" aria-label="Abbina">
+      <div class="nav-icon">🍽</div>
+      <div class="nav-label">Abbina</div>
+    </div>
+    <div class="nav-item" data-tab="impostazioni" role="button" tabindex="0" aria-label="Impostazioni">
+      <div class="nav-icon">⚙️</div>
+      <div class="nav-label">Impostazioni</div>
+    </div>
+  </nav>
+
+  <!-- ======== TOAST CONTAINER ======== -->
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+</div><!-- /#app -->
+
+<!-- SheetJS CDN for XLSX import/export -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+<!-- App Scripts -->
+<script src="./js/db.js"></script>
+<script src="./js/wine-pairings.js"></script>
+<script src="./js/import-export.js"></script>
+<script src="./js/app.js"></script>
+
+</body>
+</html>
