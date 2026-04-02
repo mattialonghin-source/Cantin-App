@@ -189,6 +189,97 @@ async function exportToXLSX() {
   return { count: all.length, fileName };
 }
 
+// ---- Auto Backup (File System Access API) ----
+
+async function exportToXLSXBuffer() {
+  if (typeof XLSX === 'undefined') {
+    throw new Error('SheetJS non caricato. Controlla la connessione internet.');
+  }
+  const all = await getAllBottiglie();
+  if (all.length === 0) throw new Error('Nessun vino da esportare.');
+
+  const headers = [
+    'quantita', 'cantina', 'vino', 'denominazione', 'annata', 'costo',
+    'uve', 'consumo', 'luogo', 'temperatura', 'abbinamenti',
+    'acquisto', 'approvazione', 'note', 'posizione',
+  ];
+  const rows = all.map(b => headers.map(h => b[h] ?? ''));
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  worksheet['!cols'] = [
+    {wch:10},{wch:25},{wch:30},{wch:25},{wch:8},{wch:10},{wch:30},{wch:20},
+    {wch:25},{wch:20},{wch:35},{wch:10},{wch:12},{wch:30},{wch:12},
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Cantina');
+  return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+}
+
+async function _writeToHandle(handle) {
+  const buffer = await exportToXLSXBuffer();
+  const writable = await handle.createWritable();
+  await writable.write(buffer);
+  await writable.close();
+}
+
+async function setupAutoBackupFile() {
+  if (!('showSaveFilePicker' in window)) {
+    throw new Error('Il tuo browser non supporta questa funzione. Usa Chrome su Android.');
+  }
+  const handle = await window.showSaveFilePicker({
+    suggestedName: 'cantina_backup.xlsx',
+    types: [{
+      description: 'Excel',
+      accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
+    }],
+  });
+  await setMetaValue('autoBackupHandle', handle);
+  await _writeToHandle(handle);
+  return handle;
+}
+
+// Returns: 'ok' | 'no_handle' | 'no_permission' | 'error'
+async function autoBackupToFile() {
+  let handle;
+  try {
+    handle = await getMetaValue('autoBackupHandle');
+  } catch {
+    return 'no_handle';
+  }
+  if (!handle) return 'no_handle';
+  try {
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return 'no_permission';
+    await _writeToHandle(handle);
+    return 'ok';
+  } catch {
+    return 'error';
+  }
+}
+
+// Called from Settings button (user gesture) to re-enable permission
+async function reEnableAutoBackup() {
+  const handle = await getMetaValue('autoBackupHandle');
+  if (!handle) return setupAutoBackupFile();
+  const perm = await handle.requestPermission({ mode: 'readwrite' });
+  if (perm === 'granted') {
+    await _writeToHandle(handle);
+    return { status: 'ok', name: handle.name };
+  }
+  return { status: 'denied' };
+}
+
+async function clearAutoBackupFile() {
+  await deleteMetaValue('autoBackupHandle');
+}
+
+async function getAutoBackupHandle() {
+  return getMetaValue('autoBackupHandle');
+}
+
+function isFileSystemAccessSupported() {
+  return 'showSaveFilePicker' in window;
+}
+
 function showImportDialog() {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');

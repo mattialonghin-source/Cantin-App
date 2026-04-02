@@ -155,3 +155,48 @@ async function getDenominazioni() {
   const set = new Set(all.map(b => b.denominazione).filter(d => d && d.trim() !== ''));
   return Array.from(set).sort();
 }
+
+// ---- Meta DB (key-value store for app config, file handles, etc.) ----
+const META_DB_NAME = 'CantinaPWA_Meta';
+const META_DB_VERSION = 1;
+
+function openMetaDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(META_DB_NAME, META_DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore('meta');
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getMetaValue(key) {
+  const metaDb = await openMetaDB();
+  return new Promise((resolve, reject) => {
+    const tx = metaDb.transaction('meta', 'readonly');
+    const req = tx.objectStore('meta').get(key);
+    req.onsuccess = () => resolve(req.result ?? null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function setMetaValue(key, value) {
+  const metaDb = await openMetaDB();
+  return new Promise((resolve, reject) => {
+    const tx = metaDb.transaction('meta', 'readwrite');
+    const req = tx.objectStore('meta').put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteMetaValue(key) {
+  const metaDb = await openMetaDB();
+  return new Promise((resolve, reject) => {
+    const tx = metaDb.transaction('meta', 'readwrite');
+    const req = tx.objectStore('meta').delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}

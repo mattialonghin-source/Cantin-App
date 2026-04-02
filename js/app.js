@@ -14,11 +14,29 @@ let filterInCantina = false;
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
   await openDB();
+  await requestPersistentStorage();
   await refreshWineList();
   setupEventListeners();
   navigateTo('cantina');
   registerServiceWorker();
 });
+
+async function requestPersistentStorage() {
+  if (navigator.storage && navigator.storage.persist) {
+    await navigator.storage.persist();
+  }
+}
+
+async function triggerAutoBackup() {
+  try {
+    const result = await autoBackupToFile();
+    if (result === 'no_permission') {
+      showToast('Backup non attivo — vai in Impostazioni per riattivarlo', 'warning');
+    }
+  } catch {
+    // Fallisce silenziosamente
+  }
+}
 
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
@@ -39,9 +57,11 @@ function navigateTo(tab) {
   if (navItem) navItem.classList.add('active');
 
   if (tab === 'cantina') {
-    // Update denominations filter
     populateDenomFilter();
     updateStats();
+  }
+  if (tab === 'impostazioni') {
+    initBackupUI();
   }
 }
 
@@ -102,6 +122,77 @@ function setupEventListeners() {
   if (savedKey) {
     document.getElementById('api-key-input').value = savedKey;
   }
+
+  // Backup automatico
+  document.getElementById('btn-setup-backup').addEventListener('click', handleSetupBackup);
+  document.getElementById('btn-remove-backup').addEventListener('click', handleRemoveBackup);
+}
+
+async function initBackupUI() {
+  const statusText = document.getElementById('backup-status-text');
+  const removeBtn = document.getElementById('btn-remove-backup');
+  const setupBtn = document.getElementById('btn-setup-backup');
+
+  if (!isFileSystemAccessSupported()) {
+    statusText.textContent = 'Non supportato su questo browser';
+    statusText.style.color = 'var(--text-muted)';
+    setupBtn.disabled = true;
+    return;
+  }
+
+  const handle = await getAutoBackupHandle();
+  if (handle) {
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      statusText.textContent = '✓ Attivo — ' + (handle.name || 'file selezionato');
+      statusText.style.color = 'var(--accent-green-light)';
+      setupBtn.textContent = '📂 Cambia file';
+    } else {
+      statusText.textContent = '⚠ Permesso scaduto';
+      statusText.style.color = 'var(--accent-gold)';
+      setupBtn.textContent = '🔓 Riattiva backup';
+    }
+    removeBtn.style.display = '';
+  } else {
+    statusText.textContent = 'Non configurato';
+    statusText.style.color = 'var(--text-secondary)';
+    setupBtn.textContent = '📂 Configura file di backup';
+    removeBtn.style.display = 'none';
+  }
+}
+
+async function handleSetupBackup() {
+  const btn = document.getElementById('btn-setup-backup');
+  btn.disabled = true;
+  try {
+    const handle = await getAutoBackupHandle();
+    if (handle) {
+      const result = await reEnableAutoBackup();
+      if (result.status === 'ok') {
+        showToast('Backup riattivato!', 'success');
+      } else if (result.status === 'denied') {
+        showToast('Permesso negato. Prova a riconfigurare il file.', 'error');
+      } else {
+        showToast(`Backup configurato: ${result.name || 'file selezionato'}`, 'success');
+      }
+    } else {
+      const newHandle = await setupAutoBackupFile();
+      showToast(`Backup configurato: ${newHandle.name}`, 'success');
+    }
+    await initBackupUI();
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      showToast('Errore: ' + err.message, 'error');
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function handleRemoveBackup() {
+  await clearAutoBackupFile();
+  showToast('Backup automatico rimosso', 'info');
+  await initBackupUI();
 }
 
 // ---- Wine List ----
@@ -349,6 +440,7 @@ function setupModalFooterEvents(isNew, wine) {
         }
         closeModal();
         await refreshWineList();
+        await triggerAutoBackup();
       } catch (err) {
         showToast('Errore nel salvataggio: ' + err.message, 'error');
       }
@@ -364,6 +456,7 @@ function setupModalFooterEvents(isNew, wine) {
         showToast('Bottiglia eliminata', 'info');
         closeModal();
         await refreshWineList();
+        await triggerAutoBackup();
       } catch (err) {
         showToast('Errore: ' + err.message, 'error');
       }
@@ -381,6 +474,7 @@ function setupModalFooterEvents(isNew, wine) {
         showToast('Bottiglia duplicata!', 'success');
         closeModal();
         await refreshWineList();
+        await triggerAutoBackup();
       } catch (err) {
         showToast('Errore: ' + err.message, 'error');
       }
@@ -747,6 +841,7 @@ async function handleImport() {
       : `Importate ${result.added} bottiglie${result.errors > 0 ? ` (${result.errors} errori)` : ''}`;
     showToast(msg, 'success');
     await refreshWineList();
+    await triggerAutoBackup();
   } catch (err) {
     showToast('Errore importazione: ' + err.message, 'error');
   }
@@ -764,6 +859,7 @@ async function handleClearDB() {
     renderWineList();
     updateStats();
     showToast('Database svuotato', 'info');
+    await triggerAutoBackup();
   } catch (err) {
     showToast('Errore: ' + err.message, 'error');
   }

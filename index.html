@@ -183,6 +183,23 @@
       </div>
     </div>
 
+    <!-- Backup automatico -->
+    <div class="settings-section">
+      <div class="settings-section-title">
+        💾 Backup automatico
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">
+        Stato: <strong id="backup-status-text">Caricamento...</strong>
+      </div>
+      <div class="helper-text" style="margin-bottom:12px;">
+        Il database viene salvato automaticamente nel file scelto ogni volta che aggiungi, modifichi o elimini un vino. Il file viene sempre sovrascritto, nessuna copia multipla.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" id="btn-setup-backup">📂 Configura file di backup</button>
+        <button class="btn btn-secondary" id="btn-remove-backup" style="display:none;">✕ Rimuovi</button>
+      </div>
+    </div>
+
     <!-- Info Section -->
     <div class="settings-section">
       <div class="settings-section-title">
